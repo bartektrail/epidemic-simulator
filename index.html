@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Symulator epidemii</title>
-  <meta name="description" content="Symulator epidemii wizualizuje w jaki sposób rozprzestrzeniają się wirusy w społeczeństwie.">
+  <meta name="description" content="Symulator epidemii wizualizuje w jaki sposób rozprzestrzeniają się wirusy w społeczeństwie. Zrobiłem go przez weekend z nudów, bo jak wszyscy siedzę w domu.">
   <meta name="author" content="Bartek Kwiatkowski">
 
   <style>
@@ -458,5 +458,22 @@
 
   <div id="currentState"></div>
   <canvas id="diagram"></canvas>
+
+  <div>
+    Symulator epidemii wizualizuje w jaki sposób rozprzestrzeniają się wirusy w społeczeństwie.
+    Zrobiłem go przez weekend z nudów, bo jak wszyscy siedzę w domu.
+    Zainspirował mnie <a href="https://youtu.be/gxAaO2rsdIs">filmik 3Blue1Brown</a> pokazujący różne symulacje ludzkich zachowań w obliczu epidemii.
+    Małe kropki symbolizują ludzi, którzy żyją w jednym mieście/świecie i część z nich jest zarażona.
+    Epidemia rozprzestrzenia się w zalżności jak kropki się przmieszczają i czy się unikają.
+    Generalnie polecam ten filmik :)
+    <br/>
+    Pewnie istnieje też symulator, na którym można testować różne scenariusze, ale po co skoro można napisać własny?
+    Wartości dobrałem eksperymentalnie bazując na rzeczywistości, ale oczywiście nie można tego traktować jako wiernego oddania naszych realiów.
+    Np. "pojemność służby zdrowia" określiłem jako 20 łóżek na 700 mieszkańców, a to raczej wartość zawyżona w stosunku do większości krajów.
+    W przypadku wybrania opcji #zostańWdomu kropki starają się do siebie nie zbliżać, ale ograniczona powierzchnia sprawia, że i tak dochodzi do kontaktów.
+    "Myj ręce i dbaj o higienę" zmniejsza ryzyko zakażenia 4-krotnie.
+    <br/>
+    Zapraszam do zabawy, a jak ktoś chce zobaczyć kod i może coś dopisać do tutaj jest <a href="https://github.com/bartektrail/epidemic-simulator">repo na githubie</a>.
+  </div>
 </body>
 </html>
