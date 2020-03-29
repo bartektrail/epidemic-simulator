@@ -3,10 +3,43 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Symulator epidemii</title>
   <meta name="description" content="Symulator epidemii wizualizuje w jaki sposób rozprzestrzeniają się wirusy w społeczeństwie.">
   <meta name="author" content="Bartek Kwiatkowski">
+
+  <style>
+    .button {
+      display: inline-block;
+      padding: 15px 25px;
+      font-size: 24px;
+      cursor: pointer;
+      text-align: center;
+      text-decoration: none;
+      outline: none;
+      color: #fff;
+      background-color: #4CAF50;
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 9px #999;
+    }
+
+    .button:hover {background-color: #3e8e41}
+
+    .button:active {
+      background-color: #3e8e41;
+      box-shadow: 0 5px #666;
+      transform: translateY(4px);
+    }
+
+    .checkbox {
+      padding: 16px 16px 16px 0px;
+      font-size: 22px;
+    }
+
+    canvas { border: 1px solid black; }
+  </style>
 
   <script type="text/javascript">
     const worldSize = 500
@@ -408,23 +441,20 @@
       window.requestAnimationFrame(draw);
     }
   </script>
-  <style type="text/css">
-    canvas { border: 1px solid black; }
-  </style>
 
 </head>
 
 <body onload="initWorld()">
   <canvas id="world"></canvas><br/>
 
-  <button id="restart" type="button" onclick="initWorld()">JESZCZE RAZ!</button>
-  <button id="pauseResume" type="button" onclick="pauseOrResume()">PAUZA</button><br/>
+  <button id="restart" type="button" onclick="initWorld()" class="button">JESZCZE RAZ!</button>
+  <button id="pauseResume" type="button" onclick="pauseOrResume()" class="button">PAUZA</button><br/><br/>
 
 
   <input type="checkbox" id="socialDistancing" name="socialDistancing" onchange="changeSocialDistancing()">
-  <label for="socialDistancing">#zostańWdomu</label><br>
+  <label for="socialDistancing" class="checkbox">#zostańWdomu</label><br><br/>
   <input type="checkbox" id="applyHygiene" name="applyHygiene" onchange="changeHygiene()">
-  <label for="applyHygiene">Myj ręce i dbaj o higienę</label><br>
+  <label for="applyHygiene" class="checkbox">Myj ręce i dbaj o higienę</label><br><br/>
 
   <div id="currentState"></div>
   <canvas id="diagram"></canvas>
