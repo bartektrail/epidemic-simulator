@@ -1,0 +1,432 @@
+<!doctype html>
+
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+
+  <title>Symulator epidemii</title>
+  <meta name="description" content="Symulator epidemii wizualizuje w jaki sposób rozprzestrzeniają się wirusy w społeczeństwie.">
+  <meta name="author" content="Bartek Kwiatkowski">
+
+  <script type="text/javascript">
+    const worldSize = 500
+    const hoursPerDay = 12
+    const population = 700
+
+    const initInfected = 5
+    const maxHumanSpeed = 1.1
+    const maxHumanSpeedDelta = 0.25
+    const transmissionRadius = 15
+    const recoveryDays = 31
+    const transmissionRateMax = 0.02
+    const transmissionRateMin = 0.005
+    const healthcareSystemCapacity = 20
+    const mortalityRatMin = 0.02
+    const mortalityRatMax = 0.06
+
+    var transmissionRate = 0.02
+    var mortalityRate = mortalityRatMin
+    var avoidContact = false
+
+    var susceptible = 0
+    var infected = 0
+    var recovered = 0
+    var dead = 0
+
+    function calculateMortality() {
+      if (infected < healthcareSystemCapacity) {
+        mortalityRate = mortalityRatMin
+      } else if (infected < (2*healthcareSystemCapacity)) {
+        mortalityRate = (mortalityRatMin + mortalityRatMax)/2
+      } else {
+        mortalityRate = mortalityRatMax
+      }
+    }
+
+    const diagramWidth = 500
+    const diagramHeight = 180
+    var days = 0
+    var hours = 0
+
+    var animationRequestID = 0
+    var simulationState
+
+    const states = {
+      SUSCEPTIBLE: 'susceptible',
+      INFECTED: 'infected',
+      RECOVERED: 'recovered',
+      DEAD: 'dead'
+    }
+
+    const simulationStates = {
+      RUNNING: 'running',
+      PAUSED: 'paused'
+    }
+
+    const dotSize = 3
+    const susceptibleColor = 'rgb(50, 50, 255)'
+    const infectedColor = 'rgb(200, 0, 0)'
+    const recoveredColor = 'rgb(0, 200, 0)'
+    const deadColor = 'rgb(100, 100, 100)'
+
+    var humans = []
+    var daysStats = []
+
+    class DayStats {
+      constructor (day, susceptible, infected, recovered, dead) {
+        this.day = day
+        this.susceptible = susceptible
+        this.infected = infected
+        this.recovered = recovered
+        this.dead = dead
+      }
+    }
+
+    function iSNextDay() {
+      if (hours++ < hoursPerDay) {
+        return false
+      }
+
+      hours = 0
+      return true
+    }
+
+    function calculateDayStats() {
+      susceptible = 0
+      infected = 0
+      recovered = 0
+      dead = 0
+
+      for (i = 0; i < population; i++) {
+        var human = humans[i]
+        switch (human.state) {
+          case states.SUSCEPTIBLE:
+            susceptible++
+            break;
+          case states.INFECTED:
+            infected++
+            break;
+          case states.RECOVERED:
+            recovered++
+            break;
+          case states.DEAD:
+            dead++
+            break;
+        }
+      }
+
+      return new DayStats(days++, susceptible, infected, recovered, dead)
+    }
+
+    class Human {
+      constructor (state) {
+        this.x = Math.floor(Math.random() * worldSize)
+        this.y = Math.floor(Math.random() * worldSize)
+        this.vx = 0
+        this.vy = 0
+        this.state = state
+        this.dayOfInfection = 0;
+        this.recoveryDays = recoveryDays
+      }
+
+      move() {
+        if (this.state == states.DEAD) {
+          return
+        }
+
+        this.vx = calculateV(this.vx)
+        this.vy = calculateV(this.vy)
+
+        this.x = this.x + this.vx
+        this.y = this.y + this.vy
+
+        this.x = fixPosition(this.x)
+        this.y = fixPosition(this.y)
+
+        if (this.state == states.INFECTED) {
+          if ((days-this.recoveryDays) > this.dayOfInfection) {
+            if (Math.random() < mortalityRate) {
+              this.state = states.DEAD
+            } else {
+              this.state = states.RECOVERED
+            }
+          }
+        }
+      }
+
+      interact(human2) {
+        // try to avoid human2
+        if (avoidContact) {
+          var distance = Math.sqrt(Math.pow(this.x - human2.x, 2) + Math.pow(this.y - human2.y, 2))
+          if (distance < 2*transmissionRadius) {
+            if (this.x < human2.x) {
+              this.vx = this.vx - maxHumanSpeedDelta
+            } else {
+              this.vx = this.vx + maxHumanSpeedDelta
+            }
+            if (this.y < human2.y) {
+              this.vy = this.vy - maxHumanSpeedDelta
+            } else {
+              this.vy = this.vy + maxHumanSpeedDelta
+            }
+          }
+        }
+
+        // human2 tries to infect me
+        if (this.state == states.SUSCEPTIBLE && human2.state == states.INFECTED) {
+          var distance = Math.sqrt(Math.pow(this.x - human2.x, 2) + Math.pow(this.y - human2.y, 2))
+          if (distance < transmissionRadius) {
+            if (Math.random() < transmissionRate) {
+              this.state = states.INFECTED
+              this.dayOfInfection = days
+            }
+          }
+        }
+      }
+    }
+
+    function calculateV(v) {
+      var newV = v + (maxHumanSpeedDelta - Math.random() * maxHumanSpeedDelta * 2)
+      if (newV > maxHumanSpeed) {
+        newV = maxHumanSpeed
+      } else if (newV < -maxHumanSpeed) {
+        newV = -maxHumanSpeed
+      }
+
+      return newV
+    }
+
+    function fixPosition(p) {
+      var newP = p;
+      if (p < 0) {
+        newP = -p
+      } else if (p > worldSize) {
+        newP = worldSize - (p - worldSize)
+      }
+
+      return newP
+    }
+
+    function drawDot(ctx, color, x, y) {
+      ctx.fillStyle = color;
+      var dot = new Path2D();
+      dot.arc(x, y, dotSize, 0, 2 * Math.PI);
+
+      ctx.fill(dot);
+    }
+
+    function drawTransmissionCircle(ctx, color, x, y) {
+      ctx.strokeStyle = color;
+      var circle = new Path2D();
+      circle.arc(x, y, transmissionRadius, 0, 2 * Math.PI);
+
+      ctx.stroke(circle);
+    }
+
+    function drawSusceptible(ctx, x, y) {
+      drawDot(ctx, susceptibleColor, x, y)
+    }
+
+    function drawInfected(ctx, x, y) {
+      drawDot(ctx, infectedColor, x, y)
+      drawTransmissionCircle(ctx, infectedColor, x, y)
+    }
+
+    function drawRecovered(ctx, x, y) {
+      drawDot(ctx, recoveredColor, x, y)
+    }
+
+    function drawDead(ctx, x, y) {
+      drawDot(ctx, deadColor, x, y)
+    }
+
+    function drawHuman(ctx, human) {
+      switch(human.state) {
+        case states.SUSCEPTIBLE:
+          drawSusceptible(ctx, human.x, human.y)
+          break
+        case states.INFECTED:
+          drawInfected(ctx, human.x, human.y)
+          break
+        case states.RECOVERED:
+          drawRecovered(ctx, human.x, human.y)
+          break
+        case states.DEAD:
+          drawDead(ctx, human.x, human.y)
+          break
+      }
+    }
+
+    function drawDayStats(ctx, dayStats) {
+      var susceptibleHeight = dayStats.susceptible / population * diagramHeight
+      var infectedHeight = dayStats.infected / population * diagramHeight
+      var recoveredHeight = dayStats.recovered / population * diagramHeight
+      var deadHeight = dayStats.dead / population * diagramHeight
+
+      ctx.fillStyle = recoveredColor
+      ctx.fillRect(dayStats.day, 0, 1, recoveredHeight)
+
+      ctx.fillStyle = susceptibleColor
+      ctx.fillRect(dayStats.day, recoveredHeight, 1, susceptibleHeight)
+
+      ctx.fillStyle = infectedColor
+      ctx.fillRect(dayStats.day, recoveredHeight + susceptibleHeight, 1, infectedHeight)
+
+      ctx.fillStyle = deadColor
+      ctx.fillRect(dayStats.day, recoveredHeight + susceptibleHeight + infectedHeight, 1, deadHeight)
+    }
+
+    function pauseOrResume() {
+      if (simulationState == simulationStates.RUNNING) {
+        simulationState = simulationStates.PAUSED
+      } else if (simulationState == simulationStates.PAUSED) {
+        simulationState = simulationStates.RUNNING
+      }
+
+      setPauseResumeText()
+    }
+
+    function setPauseResumeText() {
+        if (simulationState == simulationStates.PAUSED) {
+          document.getElementById("pauseResume").innerHTML = 'WZNÓW'
+        } else if (simulationState == simulationStates.RUNNING) {
+          document.getElementById("pauseResume").innerHTML = 'PAUZA'
+        }
+    }
+
+    function changeSocialDistancing() {
+      avoidContact = document.getElementById("socialDistancing").checked
+    }
+
+    function changeHygiene() {
+      if (document.getElementById("applyHygiene").checked) {
+        transmissionRate = transmissionRateMin
+      } else {
+        transmissionRate = transmissionRateMax
+      }
+    }
+
+    function initWorld() {
+      var canvas = document.getElementById('world');
+      canvas.width = worldSize;
+      canvas.height = worldSize;
+
+      humans = []
+      daysStats = []
+      days = 0
+      hours = 0
+      susceptible = 0
+      infected = initInfected
+      recovered = 0
+      dead = 0
+
+      for (i = 0; i < population; i++) {
+        var human
+        if (i < initInfected) {
+          human = new Human(states.INFECTED)
+        } else {
+          human = new Human(states.SUSCEPTIBLE)
+        }
+
+        humans.push(human)
+      }
+
+
+      var diagramCanvas = document.getElementById('diagram');
+      diagramCanvas.width = diagramWidth;
+      diagramCanvas.height = diagramHeight;
+
+      if (diagramCanvas.getContext) {
+        var diagramCtx = diagramCanvas.getContext('2d');
+        diagramCtx.clearRect(0, 0, diagramWidth, diagramHeight);
+      }
+
+      simulationState = simulationStates.RUNNING
+      setPauseResumeText()
+
+      if (animationRequestID == 0) {
+          animationRequestID = window.requestAnimationFrame(draw);
+      }
+    }
+
+    function draw() {
+      if (simulationState == simulationStates.RUNNING) {
+        var canvas = document.getElementById('world');
+        if (canvas.getContext) {
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, worldSize, worldSize);
+
+          for (i = 0; i < population; i++) {
+            var human = humans[i]
+
+            for (j = 0; j < population; j++) {
+              if (i != j) {
+                var human2 = humans[j]
+                human.interact(human2)
+              }
+            }
+
+            human.move()
+            drawHuman(ctx, human)
+          }
+        }
+
+        var diagramCanvas = document.getElementById('diagram');
+
+        if (diagramCanvas.getContext) {
+          var diagramCtx = diagramCanvas.getContext('2d');
+
+          if (iSNextDay()) {
+            if (days < diagramWidth) {
+
+              daysStats.push(calculateDayStats())
+
+              for (i = 0; i < daysStats.length; i++) {
+                var dayStats = daysStats[i]
+                drawDayStats(diagramCtx, dayStats)
+              }
+            }
+          }
+        }
+
+        var currentState = document.getElementById("currentState")
+        currentState.innerHTML = "Populacja: " + population + "<br/>"
+          + "<span style='color: #3333ff'> &bull; " + "Zdrowych: " + susceptible + "</span><br/>"
+          + "<span style='color: #bb0000'> &bull; " + "Zainfekowanych: " + infected + "</span><br/>"
+          + "<span style='color: #00bb00'> &bull; " + "Ozdrowiałych: " + recovered + "</span><br/>"
+          + "<span style='color: #555555'> &bull; " + "Ofiar śmiertelnych: " + dead + "</span><br/>"
+          + "Dzień symulacji: " + days + "<br/>";
+
+          if (infected == 0) {
+            simulationState = simulationStates.PAUSED
+            setPauseResumeText()
+          }
+
+          calculateMortality()
+      }
+
+      window.requestAnimationFrame(draw);
+    }
+  </script>
+  <style type="text/css">
+    canvas { border: 1px solid black; }
+  </style>
+
+</head>
+
+<body onload="initWorld()">
+  <canvas id="world"></canvas><br/>
+
+  <button id="restart" type="button" onclick="initWorld()">JESZCZE RAZ!</button>
+  <button id="pauseResume" type="button" onclick="pauseOrResume()">PAUZA</button><br/>
+
+
+  <input type="checkbox" id="socialDistancing" name="socialDistancing" onchange="changeSocialDistancing()">
+  <label for="socialDistancing">#zostańWdomu</label><br>
+  <input type="checkbox" id="applyHygiene" name="applyHygiene" onchange="changeHygiene()">
+  <label for="applyHygiene">Myj ręce i dbaj o higienę</label><br>
+
+  <div id="currentState"></div>
+  <canvas id="diagram"></canvas>
+</body>
+</html>
